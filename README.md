@@ -1,4 +1,4 @@
-# Drainability as a Structural Condition for Granularity-Based Reclamation
+# Drainability as a Structural Condition for Granularity-Based Memory Reclamation
 
 ## Abstract
 
