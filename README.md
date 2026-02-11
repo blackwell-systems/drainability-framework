@@ -384,3 +384,10 @@ Empirically:
 > Reclamation success is not a property of policy; it is a property of structural alignment between allocation routing and lifetime semantics.
 
 Coarse-grained memory reclamation is therefore a structural alignment problem, not solely an allocator problem. The Drainability Framework characterizes when deterministic reclamation is possible.
+
+----
+If you use this framework, please cite:
+
+Blackwell, D. (2026).
+Drainability: A Structural Condition for Granularity-Based Memory Reclamation.
+
