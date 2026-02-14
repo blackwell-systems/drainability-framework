@@ -1,3 +1,5 @@
+[![Blackwell Systems™](https://raw.githubusercontent.com/blackwell-systems/blackwell-docs-theme/main/badge-trademark.svg)](https://github.com/blackwell-systems)
+
 # Drainability: A Structural Condition for Granularity-Based Memory Reclamation
 
 **Dayna Blackwell, 2026**
