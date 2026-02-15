@@ -14,7 +14,7 @@ We establish two results:
 
 Together, these results establish a sharp dichotomy: when the routing function aligns allocation lifetimes with granule reclaim boundaries (drainability satisfied), retained memory is bounded by a constant independent of total allocation volume, request count, or uptime. When it does not (drainability violated), retained memory grows without bound. There is no intermediate asymptotic regime - the system either plateaus or diverges, determined entirely by whether the routing function satisfies drainability.
 
-This yields a precise distinction between two failure modes: *logical leaks*, where an allocation is never freed (a correctness bug), and *structural leaks*, where all allocations are eventually freed but lifetime–granularity misalignment prevents granules from draining - producing unbounded memory growth that is invisible to conventional leak detectors.
+This yields a precise distinction between two failure modes: *logical leaks*, where an allocation is never freed (a correctness bug), and *structural leaks*, where all allocations are eventually freed but lifetime-granularity misalignment prevents granules from draining - producing unbounded memory growth that is invisible to conventional leak detectors.
 
 We validate both results empirically in a slab-granularity allocator, observing a 238× differential in recycle rate between lifetime-mixed and lifetime-isolated routing under identical allocator logic and identical workload, differing only in allocation routing. This work does not introduce a new allocator; it characterizes the structural condition that determines whether coarse-grained reclamation produces bounded or unbounded memory retention in long-running systems.
 
@@ -114,7 +114,7 @@ Every allocation is eventually freed, but lifetime mixing prevents granules from
 
 The structural leak is the more insidious failure mode precisely because it is invisible to object-level leak detectors. A system exhibiting structural leaks will pass Valgrind cleanly: every allocation has a corresponding deallocation. Yet RSS grows without bound because granules accumulate faster than they drain.
 
-**Structural Leak Principle.** In granularity-based reclamation systems, retained-granule growth (and therefore retained memory under non-relocating retention) may be asymptotically forced by lifetime–granularity misalignment, even in the complete absence of logical leaks.
+**Structural Leak Principle.** In granularity-based reclamation systems, retained-granule growth (and therefore retained memory under non-relocating retention) may be asymptotically forced by lifetime-granularity misalignment, even in the complete absence of logical leaks.
 
 The practical consequence of this distinction is that each failure mode demands a different remediation strategy:
 
@@ -122,7 +122,7 @@ The practical consequence of this distinction is that each failure mode demands 
 |---|---|---|
 | Logical leak | Missing deallocation | Find the unmatched `alloc` - tools like Valgrind and ASan detect this directly |
 | "Fragmentation" (misdiagnosis) | Assumed allocator inefficiency | Tune slab sizes, flush caches, adjust free lists - none of which change the asymptotic class |
-| Structural leak | Lifetime–granularity misalignment in ρ | Change the routing function: move the cross-lifetime allocation to a granule whose reclaim boundary matches its lifetime |
+| Structural leak | Lifetime-granularity misalignment in ρ | Change the routing function: move the cross-lifetime allocation to a granule whose reclaim boundary matches its lifetime |
 
 The third row is the actionable contribution of the drainability framework. Systems exhibiting structural leaks are routinely misdiagnosed as the second row, leading to remediation efforts that cannot succeed.
 
@@ -356,6 +356,8 @@ Drainability is therefore *not* a necessary condition for reclamation in general
 
 ## 8. Related Work
 
+The research lineages below each address a specific mechanism, type system, or bound for memory management. None states the structural condition that governs reclamation success across all coarse-grained, non-relocating systems. The drainability framework fills that gap.
+
 ### 8.1 Granularity-Based Systems
 
 The drainability condition applies uniformly to non-relocating systems that reclaim at granularity boundaries, including:
@@ -369,7 +371,7 @@ Among these systems, epoch-based reclamation (EBR) merits particular attention b
 
 In each case, the alignment theorem applies: deterministic reclamation at the boundary requires drainability of the granule. Bonwick (1994) provided the mechanism for efficient slab allocation; the drainability framework provides the structural precondition for its long-term sustainability under workload churn. Similarly, Tofte and Talpin (1997) established region-based lifetime management as a compiler-directed strategy; drainability characterizes when that strategy succeeds at the reclamation level regardless of whether lifetime inference is compiler-directed or programmer-directed.
 
-It is worth noting that Tofte and Talpin also identified *region proliferation* - the creation of excessive regions when lifetime inference cannot prove that objects in different regions share lifetimes - as a failure mode of region-based management. Region proliferation is the dual of drainability violation: where drainability violation places too many lifetime classes in too few granules (causing pinning), region proliferation places too few objects in too many granules (causing overhead from excessive region creation and bookkeeping). Both are failures of lifetime–granule alignment, but in opposite directions.
+It is worth noting that Tofte and Talpin also identified *region proliferation* - the creation of excessive regions when lifetime inference cannot prove that objects in different regions share lifetimes - as a failure mode of region-based management. Region proliferation is the dual of drainability violation: where drainability violation places too many lifetime classes in too few granules (causing pinning), region proliferation places too few objects in too many granules (causing overhead from excessive region creation and bookkeeping). Both are failures of lifetime-granule alignment, but in opposite directions.
 
 ### 8.2 Randomized Compaction and Physical Page Reclamation
 
@@ -408,6 +410,26 @@ Empirically, drainability violation produces reclamation collapse (0.28% recycle
 **Core result.** For long-running services built on non-relocating, coarse-grained allocators, drainability is the necessary and sufficient condition for bounded memory retention. When the routing function ρ aligns allocation lifetimes with granule reclaim boundaries, retained memory is bounded by a constant independent of total allocation volume, request count, or uptime (Theorem 2). When it does not, retained memory grows at least linearly (Theorem 3). This is a sharp dichotomy with no intermediate asymptotic regime: the system either plateaus or diverges, and the outcome is determined entirely by the structural alignment between allocation routing and lifetime semantics - not by allocator policy, tuning, or heuristics.
 
 The drainability framework provides both the diagnostic question ("does any allocation outlive its granule's reclaim boundary?") and the architectural prescription ("route to a granule whose boundary matches the allocation's lifetime"). It explains a class of memory growth failures - structural leaks - that are invisible to conventional leak detection, and it defines the conditions under which coarse-grained reclamation can sustain bounded memory in perpetuity.
+
+## References
+
+Bonwick, J. (1994). The Slab Allocator: An Object-Caching Kernel Memory Allocator. *Proceedings of the USENIX Summer 1994 Technical Conference*, pp. 87-98.
+
+Emery, D., Berger, E. D., & Curtsinger, C. (2019). Mesh: Compacting Memory Management for C/C++ Applications. *Proceedings of the 40th ACM SIGPLAN Conference on Programming Language Design and Implementation (PLDI)*, pp. 333-346.
+
+Fraser, K. (2004). Practical Lock-Freedom. *PhD Dissertation*, University of Cambridge.
+
+Jim, T., Morrisett, J. G., Grossman, D., Hicks, M. W., Cheney, J., & Wang, Y. (2002). Cyclone: A Safe Dialect of C. *Proceedings of the USENIX Annual Technical Conference*, pp. 275-288.
+
+Johnstone, M. S., & Wilson, P. R. (1998). The Memory Fragmentation Problem: Solved? *Proceedings of the 1998 ACM SIGPLAN International Symposium on Memory Management (ISMM)*, pp. 26-36.
+
+Leijen, D., Zorn, B., & de Moura, L. (2019). Mimalloc: Free List Sharding in Action. *Proceedings of the 2019 Asian Conference on Programming Languages and Systems (APLAS)*, pp. 244-265.
+
+Robson, J. M. (1971). An Estimate of the Store Size Required for Dynamic Storage Allocation. *Journal of the ACM*, 18(3), pp. 416-423.
+
+Robson, J. M. (1977). Worst Case Fragmentation of First Fit and Best Fit Storage Allocation Strategies. *The Computer Journal*, 20(3), pp. 242-244.
+
+Tofte, M., & Talpin, J.-P. (1997). Region-Based Memory Management. *Information and Computation*, 132(2), pp. 109-176.
 
 ---
 
