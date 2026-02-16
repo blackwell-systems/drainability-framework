@@ -383,7 +383,11 @@ Robson (1971, 1977) established worst-case lower bounds on memory fragmentation 
 
 **Static analysis of drainability.** Can drainability be checked at compile time? In the general case, determining whether an allocation's lifetime exceeds its granule's reclaim boundary requires resolving control flow and input-dependent behavior, making exact static decidability unlikely for arbitrary programs. However, conservative approximations are feasible. Rust's ownership and borrowing system already enforces a restricted form of lifetime-scoped allocation - an allocation borrowed by a scope cannot outlive that scope, which is a syntactic sufficient condition for drainability when scopes correspond to granules. Region type systems (Tofte & Talpin, 1997; Cyclone: Jim et al., 2002) enforce similar constraints through type-level region annotations. Investigating what class of routing functions can be statically verified as drainability-preserving - and what the precision-cost tradeoff looks like for practical codebases - is an open question.
 
-**Dynamic detection.** A more immediately tractable direction is runtime detection of drainability violations. An instrumented allocator could track, for each granule, whether any allocation survives past the granule's reclaim boundary, and report violating granules along with the allocation site responsible for the pinning object. This would function as a *drainability profiler* - analogous to how Valgrind detects logical leaks, but operating at the granule level to detect structural leaks. No such tool currently exists. The instrumentation overhead would be modest (one timestamp comparison per granule close), making it viable for production profiling or integration into existing memory debugging toolchains.
+**Dynamic detection.** A more immediately tractable direction is runtime detection of drainability violations. We envision a *drainability profiler* operating in two modes. A *production mode* would record one bit per granule close - drainable or not - and expose the drainability satisfaction rate as a continuously monitored metric, analogous to a cache hit rate. The overhead is minimal (one timestamp comparison per close), making it viable for always-on deployment. A drop in the drainability rate would signal a structural regression before RSS growth becomes visible.
+
+A *diagnostic mode*, enabled during investigation, would additionally record the allocation site and timestamp of every object live at granule close, together with the granule's reclaim timestamp. The difference between allocation lifetime and reclaim boundary - the *lifetime delta* - distinguishes near-miss violations (an object freed milliseconds after close, potentially addressable by adjusting granule boundaries) from fundamental routing mismatches (an object living hours in a millisecond-scoped granule, requiring an architectural routing change). Reporting the pinning allocation site directly identifies the line of code responsible for the structural leak.
+
+No such tool currently exists. The diagnostic gap is precisely the one identified in Section 7.3: conventional tools operate at the object level and cannot attribute RSS growth to granule-level retention. A drainability profiler would close this gap by measuring the necessary and sufficient condition for reclamation success, rather than a proxy. Integration as a reporting mode in existing allocators (jemalloc, mimalloc, bumpalo) would provide the most direct path to adoption.
 
 **Empirical breadth.** The current empirical validation uses a single synthetic workload with two lifetime classes. Validating the framework's predictions across multiple workloads (three or more lifetime classes, varying mixing fractions), multiple allocator implementations (slab, region, epoch), real application traces, and sensitivity to granule parameters (slab capacity, region size) would strengthen the empirical case. Of particular interest is the *partial violation* regime: workloads where a small fraction of granules are non-drainable, which the theory predicts produces linear growth with a small coefficient - a regime that may be common in practice but difficult to distinguish from noise without targeted instrumentation.
 
@@ -433,13 +437,14 @@ Tofte, M., & Talpin, J.-P. (1997). Region-Based Memory Management. *Information 
 
 *If you use this framework, please cite:*
 
-Blackwell, D. (2026). Drainability: When Coarse-Grained Memory Reclamation Produces Bounded Retention. Technical Report.
+Blackwell, D. (2026). Drainability: When Coarse-Grained Memory Reclamation Produces Bounded Retention. Technical Report. doi:10.5281/zenodo.18653777
 
 ```bibtex
 @techreport{blackwell2026drainability,
   title     = {Drainability: When Coarse-Grained Memory Reclamation Produces Bounded Retention},
   author    = {Blackwell, Dayna},
   year      = {2026},
+  doi       = {10.5281/zenodo.18653777},
   note      = {Technical Report},
   license   = {CC-BY-4.0}
 }
