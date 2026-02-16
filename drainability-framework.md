@@ -437,14 +437,14 @@ Tofte, M., & Talpin, J.-P. (1997). Region-Based Memory Management. *Information 
 
 *If you use this framework, please cite:*
 
-Blackwell, D. (2026). Drainability: When Coarse-Grained Memory Reclamation Produces Bounded Retention. Technical Report. doi:10.5281/zenodo.18653777
+Blackwell, D. (2026). Drainability: When Coarse-Grained Memory Reclamation Produces Bounded Retention. Technical Report. doi:10.5281/zenodo.18653776
 
 ```bibtex
 @techreport{blackwell2026drainability,
   title     = {Drainability: When Coarse-Grained Memory Reclamation Produces Bounded Retention},
   author    = {Blackwell, Dayna},
   year      = {2026},
-  doi       = {10.5281/zenodo.18653777},
+  doi       = {10.5281/zenodo.18653776},
   note      = {Technical Report},
   license   = {CC-BY-4.0}
 }
