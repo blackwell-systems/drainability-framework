@@ -269,8 +269,6 @@ A slab is reclaimable if and only if it contains zero live objects, so any live 
 R(t) = \sum_{\substack{g \text{ closed by } t \\ \textit{live}(g, t) \neq \emptyset}} \sum_k R_k(g, t)
 \]
 
-\noindent where $R_k(g, t) = \lceil L_k(g, t) / C_k \rceil$ is the number of retained slabs of class $k$ in granule $g$ at time $t$.
-
 \subsection{Assumptions}
 
 We make three bounding assumptions to isolate structural effects from allocator-internal behaviors:
