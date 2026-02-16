@@ -1,0 +1,10 @@
+Temporal-slab epoch statistics:
+  Total epoch advances: 20
+  Total epoch closes:   16
+
+Slab pool diagnostics:
+  Class 128B: new=10 recycled=40 net=-30 slowpath=41
+  Class 256B: new=20 recycled=3482 net=-3462 slowpath=3480
+  Class 384B: new=2047 recycled=512 net=1535 slowpath=8190
+  Class 512B: new=66 recycled=224 net=-158 slowpath=265
+  TOTAL: new=2143 recycled=4258 net=-2115

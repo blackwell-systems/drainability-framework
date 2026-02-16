@@ -1,0 +1,12 @@
+Temporal-slab epoch statistics:
+  Total epoch advances: 200
+  Total epoch closes:   196
+  Total domain enters:  200000
+  Total domain exits:   200000
+
+Slab pool diagnostics:
+  Class 128B: new=27847 recycled=10 net=27837 slowpath=28040
+  Class 256B: new=55576 recycled=13 net=55563 slowpath=55770
+  Class 384B: new=172834 recycled=1319 net=171515 slowpath=174331
+  Class 512B: new=238059 recycled=30 net=238029 slowpath=238274
+  TOTAL: new=494316 recycled=1372 net=492944 (1925.56 MB retained)
