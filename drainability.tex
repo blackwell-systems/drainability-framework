@@ -168,7 +168,7 @@ Each allocation is routed to exactly one granule by a routing function:
 \rho: \mathbf{A} \to \mathbf{G}
 \]
 
-We write $\rho(a)$ for the granule to which allocation $a$ is routed. Drainability (defined in Section~3) is a property of $\rho$ given the program's lifetime structure: the same program may produce drainable granules under one routing function and non-drainable granules under another. The central result of this paper is that reclamation success is determined by $\rho$, not by the allocator's reclamation policy.
+We write $\rho(a)$ for the granule to which allocation $a$ is routed. We write $\textit{live}(g, t) = \{a \in \textit{allocs}(g) : t_{\textit{free}}(a) > t\}$ for the set of allocations in $g$ that are live at time $t$. Drainability (defined in Section~3) is a property of $\rho$ given the program's lifetime structure: the same program may produce drainable granules under one routing function and non-drainable granules under another. The central result of this paper is that reclamation success is determined by $\rho$, not by the allocator's reclamation policy.
 
 \subsection{Reclamation Rule}
 
@@ -202,7 +202,7 @@ Drainability is not purely an allocator property; it is a joint property of (1) 
 \subsection{Alignment Theorem}
 
 \begin{theorem}[Reclaimability $\iff$ Drainability at the Boundary]
-For any allocator reclaiming memory at granularity $G$ under the non-relocating rule, a granule $g$ is reclaimable at its designated reclaim boundary $t_{\textit{reclaim}}(g)$ if and only if $g$ is drainable.
+For any non-relocating, coarse-grained allocator, a granule $g$ is reclaimable at its designated reclaim boundary $t_{\textit{reclaim}}(g)$ if and only if $g$ is drainable.
 \end{theorem}
 
 \begin{proof}
@@ -261,17 +261,14 @@ We characterize retained memory growth under drainability satisfaction versus vi
 
 \subsection{Slab-Granularity Refinement}
 
-For slab allocators with size classes, let: $k$ denote a size class, $C_k$ the objects per slab (capacity for class $k$), $L_k(g)$ the live objects of class $k$ remaining in granule $g$ at its reclaim boundary, and $R_k(g)$ the retained slabs of class $k$ after the reclaim boundary of $g$.
+For slab allocators with size classes, let: $k$ denote a size class, $C_k$ the objects per slab (capacity for class $k$), $L_k(g, t)$ the number of live objects of class $k$ in granule $g$ at time $t$, and $R_k(g, t) = \lceil L_k(g, t) / C_k \rceil$ the retained slabs of class $k$ in $g$ at time $t$.
 
-A slab is reclaimable if and only if it contains zero live objects, so:
+A slab is reclaimable if and only if it contains zero live objects, so any live object pins its entire slab. Total retained slabs at time $t$ (slabs in closed granules that are not yet reclaimable):
 \[
-R_k(g) \geq \lceil L_k(g) / C_k \rceil
+R(t) = \sum_{\substack{g \text{ closed by } t \\ \textit{live}(g, t) \neq \emptyset}} \sum_k R_k(g, t)
 \]
 
-Any live object pins its entire slab. Total retained slabs by time $t$:
-\[
-R(t) = \sum_{g \text{ closed by } t} \sum_k R_k(g)
-\]
+\noindent where $R_k(g, t) = \lceil L_k(g, t) / C_k \rceil$ is the number of retained slabs of class $k$ in granule $g$ at time $t$.
 
 \subsection{Assumptions}
 
@@ -291,7 +288,7 @@ If every closed granule is drainable, then $R(t)$ is bounded independent of time
 \end{theorem}
 
 \begin{proof}
-Drainability implies $L_k(g) = 0$ for all size classes $k$ and all closed granules $g$, hence $R_k(g) = 0$ at close. Retained slabs therefore consist only of slabs in currently open granules and slabs in bounded recycling caches. Let $\textit{peak}_k$ be the maximum number of live objects of class $k$ in any single open granule. Then:
+Drainability implies $L_k(g, t) = 0$ for all size classes $k$, all closed granules $g$, and all $t \geq t_{\textit{reclaim}}(g)$, so every closed granule satisfies $\textit{live}(g, t) = \emptyset$ and is excluded from the sum. Retained slabs therefore consist only of slabs in currently open granules and slabs in bounded recycling caches. Let $\textit{peak}_k$ be the maximum number of live objects of class $k$ in any single open granule. Then:
 \[
 R(t) \leq G_{\textit{open}} \cdot \sum_k \lceil \textit{peak}_k / C_k \rceil + K
 \]
@@ -305,14 +302,14 @@ Under drainability, RSS converges to a steady-state plateau determined by the pi
 \subsection{Linear Lower Bound Under Violation (Theorem 3)}
 
 \begin{theorem}
-Let $m(t)$ be the number of granules closed by time $t$. If there exists $p > 0$ such that for at least a fraction $p$ of closed granules, at reclaim time there exists some size class $k$ with $L_k(g) \geq 1$, then:
+Let $m(t)$ be the number of granules closed by time $t$. If there exists $p > 0$ such that for at least a fraction $p$ of closed granules, at time $t$ there exists some size class $k$ with $L_k(g, t) \geq 1$, then:
 \[
 R(t) \geq p \cdot m(t)
 \]
 \end{theorem}
 
 \begin{proof}
-Each such granule contributes at least one retained slab (since $\lceil L_k(g)/C_k \rceil \geq 1$ when $L_k(g) \geq 1$). With at least $p \cdot m(t)$ such granules by time $t$, the bound follows.
+Each such granule contributes at least one retained slab at time $t$ (since $\lceil L_k(g, t)/C_k \rceil \geq 1$ when $L_k(g, t) \geq 1$). With at least $p \cdot m(t)$ such granules by time $t$, the bound follows.
 \end{proof}
 
 \textbf{Instantiation for batch workloads.} For workloads processing requests of average size $B$ allocations, granule closes scale as $m(t) \approx t/B$, yielding $R(t) = \Omega(t/B)$.
@@ -321,7 +318,7 @@ Each such granule contributes at least one retained slab (since $\lceil L_k(g)/C
 Under sustained drainability violation, RSS grows without bound, at a rate proportional to the request processing rate.
 \end{corollary}
 
-\textbf{On ``sustained'' violation.} Theorem~3 requires that a positive fraction $p$ of granules are non-drainable. In practice, this occurs whenever allocations from distinct lifetime classes (e.g., session-scoped and request-scoped objects) are persistently routed to the same granules. The violation is sustained as long as the routing policy and workload mix remain stable, which is the common case for server workloads under steady-state load. Transient mixing---a brief burst followed by clean routing---produces a bounded one-time cost rather than unbounded growth.
+\textbf{On ``sustained'' violation.} Theorem~3 requires that at any observation time $t$, a positive fraction $p$ of granules closed by $t$ still contain at least one live allocation. This holds when pinning allocations' lifetimes span many granule closings---the common case for server workloads where long-lived objects (sessions, connections, caches) are mixed with short-lived objects (requests). Under steady-state workload and stable routing, new granules are pinned at a constant rate while old pinning allocations remain live, so the fraction of currently-pinned granules remains at least $p$ and $R(t)$ grows linearly in $m(t)$. Transient mixing---a brief burst followed by clean routing---produces a bounded one-time cost rather than unbounded growth, because the pinning allocations are eventually freed and the affected granules become reclaimable.
 
 \subsection{The Bounded/Unbounded Dichotomy}
 
@@ -349,7 +346,7 @@ This controlled design isolates the structural effect of drainability from all o
 
 \textbf{Violation condition:}
 \[
-\exists a_{\textit{session}}:\; \textit{lifetime}(a_{\textit{session}}) \not\subseteq \textit{lifecycle}(g_{\textit{request}})
+\exists a_{\textit{session}} \in \textit{allocs}(g_{\textit{request}}):\; t_{\textit{free}}(a_{\textit{session}}) > t_{\textit{reclaim}}(g_{\textit{request}})
 \]
 
 Session objects outlive the request-scoped granules they are placed in, pinning those granules past their reclaim boundaries.
