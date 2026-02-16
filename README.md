@@ -56,7 +56,7 @@ Each allocation is routed to exactly one granule by a routing function:
 
     ρ: A → G
 
-We write ρ(a) for the granule to which allocation *a* is routed. Drainability (defined in Section 3) is a property of ρ given the program's lifetime structure: the same program may produce drainable granules under one routing function and non-drainable granules under another. The central result of this paper is that reclamation success is determined by ρ, not by the allocator's reclamation policy.
+We write ρ(a) for the granule to which allocation *a* is routed. We write live(g, t) = {a ∈ allocs(g) : t_free(a) > t} for the set of allocations in *g* that are live at time *t*. Drainability (defined in Section 3) is a property of ρ given the program's lifetime structure: the same program may produce drainable granules under one routing function and non-drainable granules under another. The central result of this paper is that reclamation success is determined by ρ, not by the allocator's reclamation policy.
 
 ### 2.2 Reclamation Rule
 
@@ -84,7 +84,7 @@ Drainability is not purely an allocator property; it is a joint property of (1) 
 
 ### 3.2 Alignment Theorem
 
-**Theorem 1** (Reclaimability ⟺ Drainability at the Boundary). *For any allocator reclaiming memory at granularity G under the non-relocating rule, a granule g is reclaimable at its designated reclaim boundary t_reclaim(g) if and only if g is drainable.*
+**Theorem 1** (Reclaimability ⟺ Drainability at the Boundary). *For any non-relocating, coarse-grained allocator, a granule g is reclaimable at its designated reclaim boundary t_reclaim(g) if and only if g is drainable.*
 
 **Proof.**
 
@@ -136,20 +136,16 @@ For slab allocators with size classes, let:
 
 - *k*: a size class
 - *C_k*: objects per slab (capacity for class *k*)
-- *L_k(g)*: live objects of class *k* remaining in granule *g* at its reclaim boundary
-- *R_k(g)*: retained slabs of class *k* after the reclaim boundary of *g*
+- *L_k(g, t)*: the number of live objects of class *k* in granule *g* at time *t*
+- *R_k(g, t)* = ⌈L_k(g, t) / C_k⌉: retained slabs of class *k* in *g* at time *t*
 
-A slab is reclaimable if and only if it contains zero live objects, so:
+A slab is reclaimable if and only if it contains zero live objects, so any live object pins its entire slab. Total retained slabs at time *t* (slabs in closed granules that are not yet reclaimable):
 
-    R_k(g) ≥ ⌈L_k(g) / C_k⌉
-
-Any live object pins its entire slab. Total retained slabs by time *t*:
-
-    R(t) = Σ_{g closed by t} Σ_k R_k(g)
+    R(t) = Σ_{g closed by t, live(g,t) ≠ ∅} Σ_k R_k(g, t)
 
 ### 5.2 Assumptions
 
-We make two bounding assumptions to isolate structural effects from allocator-internal behaviors:
+We make three bounding assumptions to isolate structural effects from allocator-internal behaviors:
 
 1. **Bounded recycling caches.** The number of empty slabs held in free lists or recycling caches is bounded by a constant *K*.
 2. **Bounded pipeline depth.** The number of simultaneously open granules is bounded by a constant *G_open*.
@@ -161,7 +157,7 @@ These assumptions are satisfied by practical allocators and ensure that any unbo
 
 **Theorem 2.** *If every closed granule is drainable, then R(t) is bounded independent of time.*
 
-**Proof.** Drainability implies L_k(g) = 0 for all size classes *k* and all closed granules *g*, hence R_k(g) = 0 at close. Retained slabs therefore consist only of slabs in currently open granules and slabs in bounded recycling caches. Let *peak_k* be the maximum number of live objects of class *k* in any single open granule. Then:
+**Proof.** Drainability implies L_k(g, t) = 0 for all size classes *k*, all closed granules *g*, and all t ≥ t_reclaim(g), so every closed granule satisfies live(g, t) = ∅ and is excluded from the sum. Retained slabs therefore consist only of slabs in currently open granules and slabs in bounded recycling caches. Let *peak_k* be the maximum number of live objects of class *k* in any single open granule. Then:
 
     R(t) ≤ G_open · Σ_k ⌈peak_k / C_k⌉ + K
 
@@ -171,11 +167,11 @@ This bound is constant in *t*. ∎
 
 ### 5.4 Linear Lower Bound Under Violation (Theorem 3)
 
-**Theorem 3.** *Let m(t) be the number of granules closed by time t. If there exists p > 0 such that for at least a fraction p of closed granules, at reclaim time there exists some size class k with L_k(g) ≥ 1, then:*
+**Theorem 3.** *Let m(t) be the number of granules closed by time t. If there exists p > 0 such that for at least a fraction p of closed granules, at time t there exists some size class k with L_k(g, t) ≥ 1, then:*
 
     R(t) ≥ p · m(t)
 
-**Proof.** Each such granule contributes at least one retained slab (since ⌈L_k(g)/C_k⌉ ≥ 1 when L_k(g) ≥ 1). With at least p · m(t) such granules by time *t*, the bound follows. ∎
+**Proof.** Each such granule contributes at least one retained slab at time *t* (since ⌈L_k(g, t)/C_k⌉ ≥ 1 when L_k(g, t) ≥ 1). With at least p · m(t) such granules by time *t*, the bound follows. ∎
 
 **Instantiation for batch workloads.** For workloads processing requests of average size *B* allocations, granule closes scale as m(t) ≈ t/B, yielding:
 
@@ -183,7 +179,7 @@ This bound is constant in *t*. ∎
 
 **Corollary.** Under sustained drainability violation, RSS grows without bound, at a rate proportional to the request processing rate.
 
-**On "sustained" violation.** Theorem 3 requires that a positive fraction *p* of granules are non-drainable. In practice, this occurs whenever allocations from distinct lifetime classes (e.g., session-scoped and request-scoped objects) are persistently routed to the same granules. The violation is sustained as long as the routing policy and workload mix remain stable, which is the common case for server workloads under steady-state load. Transient mixing - a brief burst followed by clean routing - produces a bounded one-time cost rather than unbounded growth.
+**On "sustained" violation.** Theorem 3 requires that at any observation time *t*, a positive fraction *p* of granules closed by *t* still contain at least one live allocation. This holds when pinning allocations' lifetimes span many granule closings - the common case for server workloads where long-lived objects (sessions, connections, caches) are mixed with short-lived objects (requests). Under steady-state workload and stable routing, new granules are pinned at a constant rate while old pinning allocations remain live, so the fraction of currently-pinned granules remains at least *p* and R(t) grows linearly in m(t). Transient mixing - a brief burst followed by clean routing - produces a bounded one-time cost rather than unbounded growth, because the pinning allocations are eventually freed and the affected granules become reclaimable.
 
 ### 5.5 The Bounded/Unbounded Dichotomy
 
@@ -210,7 +206,7 @@ This controlled design isolates the structural effect of drainability from all o
 
 **Violation condition:**
 
-    ∃a_session: lifetime(a_session) ⊈ lifecycle(g_request)
+    ∃a_session ∈ allocs(g_request): t_free(a_session) > t_reclaim(g_request)
 
 Session objects outlive the request-scoped granules they are placed in, pinning those granules past their reclaim boundaries.
 
@@ -392,6 +388,8 @@ Robson (1971, 1977) established worst-case lower bounds on memory fragmentation 
 **Empirical breadth.** The current empirical validation uses a single synthetic workload with two lifetime classes. Validating the framework's predictions across multiple workloads (three or more lifetime classes, varying mixing fractions), multiple allocator implementations (slab, region, epoch), real application traces, and sensitivity to granule parameters (slab capacity, region size) would strengthen the empirical case. Of particular interest is the *partial violation* regime: workloads where a small fraction of granules are non-drainable, which the theory predicts produces linear growth with a small coefficient - a regime that may be common in practice but difficult to distinguish from noise without targeted instrumentation.
 
 **Routing function design.** This paper characterizes when a routing function ρ produces drainable granules but does not address how to design ρ. Formalizing sufficient conditions on routing functions - for instance, temporal clustering strategies that group allocations by predicted lifetime class - would extend the framework from diagnosis to synthesis. The relationship between lifetime prediction accuracy and drainability satisfaction rates is unexplored.
+
+**Generalization across allocator hierarchies.** The drainability condition applies at any granularity boundary in a non-relocating system, including virtual memory pages in general-purpose allocators. The practical severity of a drainability violation, however, depends on whether the pinned granule permits internal reuse of freed space: arena-style granules waste the entire pinned region, while slab and page-level granules may recycle free slots internally, reducing the memory cost per pinned granule without eliminating the retention itself. Characterizing this severity spectrum - and the interaction between drainability violations at multiple levels of an allocator hierarchy - is a natural extension of the present framework.
 
 ## 10. Conclusion
 
