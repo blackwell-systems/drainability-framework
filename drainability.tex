@@ -301,14 +301,14 @@ Under drainability, RSS converges to a steady-state plateau determined by the pi
 \subsection{Linear Lower Bound Under Violation (Theorem 3)}
 
 \begin{theorem}
-Let $m(t)$ be the number of granules closed by time $t$. If there exists $p > 0$ such that for at least a fraction $p$ of closed granules, at time $t$ there exists some size class $k$ with $L_k(g, t) \geq 1$, then:
+Let $m(t)$ be the number of granules closed by time $t$. If there exist $p > 0$ and $t_0 \geq 0$ such that for all $t \geq t_0$, at least a fraction $p$ of granules closed by time $t$ each contain some size class $k$ with $L_k(g, t) \geq 1$, then:
 \[
-R(t) \geq p \cdot m(t)
+R(t) \geq p \cdot m(t) \quad \text{for all } t \geq t_0.
 \]
 \end{theorem}
 
 \begin{proof}
-Each such granule contributes at least one retained slab at time $t$ (since $\lceil L_k(g, t)/C_k \rceil \geq 1$ when $L_k(g, t) \geq 1$). With at least $p \cdot m(t)$ such granules by time $t$, the bound follows.
+At any time $t \geq t_0$, each such granule contributes at least one retained slab (since $\lceil L_k(g, t)/C_k \rceil \geq 1$ when $L_k(g, t) \geq 1$). With at least $p \cdot m(t)$ such granules by time $t$, the bound follows.
 \end{proof}
 
 \textbf{Instantiation for batch workloads.} For workloads processing requests of average size $B$ allocations, granule closes scale as $m(t) \approx t/B$, yielding $R(t) = \Omega(t/B)$.
@@ -527,7 +527,7 @@ It is worth noting that Tofte and Talpin also identified \emph{region proliferat
 
 \subsection{Randomized Compaction and Physical Page Reclamation}
 
-Mesh~\cite{emery2019} addresses a closely related problem---reclaiming physical memory from partially-occupied allocator spans---through a technique the authors call \emph{meshing}: randomly assigning allocations to virtual pages such that, with high probability, pairs of partially-occupied pages can be overlaid onto a single physical page without relocating objects. Mesh operates within our framework's scope (non-relocating at the virtual level) but circumvents the drainability requirement at the physical level by exploiting virtual memory aliasing. In drainability terms, Mesh does not make granules drainable; it instead reduces the physical memory cost of non-drainable granules by merging their non-overlapping contents. This is a complementary strategy: Mesh mitigates the \emph{constant factor} of pinning-induced retention, while the drainability framework characterizes the \emph{asymptotic class}. Under sustained lifetime mixing, Mesh reduces the coefficient of the linear growth but does not convert it to $O(1)$---that requires routing discipline.
+Mesh~\cite{powers2019} addresses a closely related problem---reclaiming physical memory from partially-occupied allocator spans---through a technique the authors call \emph{meshing}: randomly assigning allocations to virtual pages such that, with high probability, pairs of partially-occupied pages can be overlaid onto a single physical page without relocating objects. Mesh operates within our framework's scope (non-relocating at the virtual level) but circumvents the drainability requirement at the physical level by exploiting virtual memory aliasing. In drainability terms, Mesh does not make granules drainable; it instead reduces the physical memory cost of non-drainable granules by merging their non-overlapping contents. This is a complementary strategy: Mesh mitigates the \emph{constant factor} of pinning-induced retention, while the drainability framework characterizes the \emph{asymptotic class}. Under sustained lifetime mixing, Mesh reduces the coefficient of the linear growth but does not convert it to $O(1)$---that requires routing discipline.
 
 mimalloc~\cite{leijen2019} organizes memory into segments divided into pages, with per-thread free lists and a segment reclamation strategy: a segment is reclaimed when all of its pages are empty. This is a direct instance of two-level granularity-based reclamation, and the drainability condition applies at both levels---a page is reclaimable when all its objects are freed, and a segment is reclaimable when all its pages are reclaimed. mimalloc's design mitigates cross-thread pinning through thread-local allocation, which is a form of implicit lifetime routing (thread-local objects tend to share lifetime characteristics). The drainability framework explains \emph{why} this design choice is effective: thread-local routing probabilistically increases drainability by reducing lifetime mixing within each segment.
 
@@ -578,8 +578,8 @@ J.~Bonwick.
 \newblock The slab allocator: An object-caching kernel memory allocator.
 \newblock In \emph{Proc. USENIX Summer 1994 Technical Conference}, pp.~87--98, 1994.
 
-\bibitem{emery2019}
-B.~Emery, E.~D.~Berger, and C.~Curtsinger.
+\bibitem{powers2019}
+B.~Powers, D.~Emery, and E.~D.~Berger.
 \newblock Mesh: Compacting memory management for {C/C++} applications.
 \newblock In \emph{Proc. 40th ACM SIGPLAN PLDI}, pp.~333--346, 2019.
 
