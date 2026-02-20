@@ -1,5 +1,7 @@
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.18653776.svg)](https://doi.org/10.5281/zenodo.18653776)
 
+**Part of the [Drainability Project](https://github.com/blackwell-systems/drainability)** – Theory, measurement tools, and validation for structural memory leaks
+
 # Drainability: When Coarse-Grained Memory Reclamation Produces Bounded Retention
 
 **Dayna Blackwell, 2026**
